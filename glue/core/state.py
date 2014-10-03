@@ -59,6 +59,7 @@ import json
 import types
 import logging
 from inspect import isgeneratorfunction
+import string
 
 import numpy as np
 
@@ -86,6 +87,31 @@ if six.PY2:
 literals += (np.ScalarType,)
 
 _lookup = lookup_class
+
+
+def disambiguate(name, taken):
+    if name not in taken:
+        return name
+
+    for i in count(0):
+        newname = "%s_%i" % (name, i)
+        if newname not in taken:
+            return newname
+
+
+def as_valid_python_name(x):
+    result = x.replace(' ', '_')
+    if result and result[0] not in string.ascii_letters:
+        result = '_' + result
+    return result
+
+
+def object_label(obj):
+    if hasattr(obj, 'label'):
+        result = obj.label
+    else:
+        result = type(obj).__name__
+    return as_valid_python_name(result)
 
 
 class GlueSerializeError(RuntimeError):
@@ -211,10 +237,7 @@ class GlueSerializer(object):
     def _label(self, obj):
         if obj is self._main:
             return '__main__'
-        elif hasattr(obj, 'label'):
-            return self._disambiguate(obj.label)
-        else:
-            return self._disambiguate(type(obj).__name__)
+        return self._disambiguate(object_label(obj))
 
     def id(self, obj):
         """
@@ -300,13 +323,7 @@ class GlueSerializer(object):
                                  " %r of type %s" % (obj, type(obj)))
 
     def _disambiguate(self, name):
-        if name not in self._objs:
-            return name
-
-        for i in count(0):
-            newname = "%s_%i" % (name, i)
-            if newname not in self._objs:
-                return newname
+        return disambiguate(name, self._objs)
 
     def dumpo(self):
         """

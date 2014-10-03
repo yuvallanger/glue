@@ -10,8 +10,9 @@ from ..core.exceptions import IncompatibleDataException, IncompatibleAttribute
 from ..core.edit_subset_mode import EditSubsetMode
 from .layer_artist import HistogramLayerArtist, LayerArtistContainer
 from .util import visible_limits, update_ticks
-from ..core.callback_property import CallbackProperty, add_callback
+from ..core.callback_property import CallbackProperty
 from ..core.util import lookup_class
+from .viz_client import init_mpl
 
 
 class UpdateProperty(CallbackProperty):
@@ -53,11 +54,12 @@ class HistogramClient(Client):
     xlog = UpdateProperty(False, relim=True)
     ylog = UpdateProperty(False)
 
-    def __init__(self, data, figure, artist_container=None):
+    def __init__(self, data, figure=None, axes=None, artist_container=None):
         super(HistogramClient, self).__init__(data)
 
         self._artists = artist_container or LayerArtistContainer()
-        self._axes = figure.add_subplot(111)
+        figure, axes = init_mpl(figure, axes)
+        self._axes = axes
         self._component = None
         self._saved_nbins = None
         self._xlim = {}
@@ -83,6 +85,10 @@ class HistogramClient(Client):
         return self._axes
 
     @property
+    def artists(self):
+        return self._artists
+
+    @property
     def xlimits(self):
         try:
             return self._xlim[self.component]
@@ -92,6 +98,10 @@ class HistogramClient(Client):
         lo, hi = self._default_limits()
         self._xlim[self.component] = lo, hi
         return lo, hi
+
+    @property
+    def att(self):
+        return self.component
 
     def _default_limits(self):
         if self.component is None:
@@ -141,6 +151,9 @@ class HistogramClient(Client):
         self._sync_layer(layer)
         self._redraw()
         return art
+
+    add_data = add_layer
+    add_subset = add_layer
 
     def _redraw(self):
         self._axes.figure.canvas.draw()
