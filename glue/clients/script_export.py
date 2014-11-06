@@ -21,7 +21,7 @@ def unindent(txt):
     return '\n'.join(l[indent:].rstrip() for l in lines)
 
 
-def export(typ):
+def export_wrapper(typ):
     def wrapper(func):
         _export_table[typ] = func
         return func
@@ -78,7 +78,7 @@ def histogram_code(artist, idx, tokens):
     return unindent(block).format(**props)
 
 
-@export(Client)
+@export_wrapper(Client)
 def export_client(client):
 
     ax = client.axes
@@ -120,7 +120,7 @@ def _sync_axes(ax):
     return unindent(result)
 
 
-@export(DataCollection)
+@export_wrapper(DataCollection)
 def export_data_collection(dc):
     # test module for now
 
