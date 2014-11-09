@@ -31,25 +31,35 @@ def export_wrapper(typ):
 def scatter_layer_code(artist, idx, tokens):
     layer = artist.layer
     style = layer.style
-    tokens['l%i' % idx] = layer
+    tokens['l{}'.format(idx)] = layer
     tokens['x'] = artist.xatt
     tokens['y'] = artist.yatt
 
-    props = dict(l='{l%i}' % idx,
-                 ms=style.markersize,
-                 ec=repr(style.color if style.marker == '+' else 'none'),
-                 c=repr(style.color),
-                 alpha=style.alpha,
-                 z=artist.zorder,
-                 marker=repr(style.marker))
+    prop = dict(
+        l='{{l{}}}'.format(idx),
+        ms=style.markersize,
+        ec=(style.color if style.marker == '+' else 'none'),
+        c=style.color,
+        alpha=style.alpha,
+        z=artist.zorder,
+        marker=style.marker,
+    )
 
     block = """
-    plt.plot({l}[{{x}}].ravel(), {l}[{{y}}].ravel(),
-             markersize={ms}, mec={ec},
-             mew=3, mfc={c}, linestyle='None',
-             marker={marker},
-             alpha={alpha}, zorder={z})
-    """.format(**props)
+    plt.plot(
+        {l}[{{x}}].ravel(),
+        {l}[{{y}}].ravel(),
+        markersize={ms},
+        mec={ec!r},
+        mew=3,
+        mfc={c!r},
+        linestyle='None',
+        marker={marker!r},
+        alpha={alpha},
+        zorder={z},
+    )
+    """.format(**prop)
+
     return unindent(block)
 
 
@@ -59,21 +69,30 @@ def histogram_code(artist, idx, tokens):
     tokens['l%i' % idx] = layer
 
     rng = artist.lo, artist.hi
-    props = dict(l='{l%i}' % idx,
-                 color=repr(style.color),
-                 alpha=style.alpha,
-                 z=artist.zorder,
-                 normed=artist.normed,
-                 cumulative=artist.cumulative,
-                 ylog=artist.ylog,
-                 xlog=artist.xlog,
-                 nbins=artist.nbins,
-                 rng=rng)
+    props = dict(
+        l='{{l{}}}'.format(idx),
+        color=style.color,
+        alpha=style.alpha,
+        z=artist.zorder,
+        normed=artist.normed,
+        cumulative=artist.cumulative,
+        ylog=artist.ylog,
+        xlog=artist.xlog,
+        nbins=artist.nbins,
+        rng=rng,
+    )
 
     block = """
-    plt.hist({l}[{{att}}].ravel(), bins={nbins}, range={rng},
-             normed={normed}, cumulative={cumulative},
-             facecolor={color}, alpha={alpha}, zorder={z})
+    plt.hist(
+        {l}[{{att}}].ravel(),
+        bins={nbins},
+        range={rng},
+        normed={normed},
+        cumulative={cumulative},
+        facecolor={color!r},
+        alpha={alpha},
+        zorder={z},
+    )
     """
     return unindent(block).format(**props)
 
@@ -105,18 +124,20 @@ def export_client(client):
 def _sync_axes(ax):
 
     result = """
-    plt.xlabel({xlbl})
-    plt.ylabel({ylbl})
+    plt.xlabel({xlbl!r})
+    plt.ylabel({ylbl!r})
     plt.xlim({xlim})
     plt.ylim({ylim})
-    plt.xscale({xsc})
-    plt.yscale({ysc})
-    """.format(xlbl=repr(ax.get_xlabel()),
-               ylbl=repr(ax.get_ylabel()),
-               xlim=ax.get_xlim(),
-               ylim=ax.get_ylim(),
-               xsc=repr(ax.get_xscale()),
-               ysc=repr(ax.get_yscale()))
+    plt.xscale({xsc!r})
+    plt.yscale({ysc!r})
+    """.format(
+        xlbl=ax.get_xlabel(),
+        ylbl=ax.get_ylabel(),
+        xlim=ax.get_xlim(),
+        ylim=ax.get_ylim(),
+        xsc=ax.get_xscale(),
+        ysc=ax.get_yscale(),
+    )
     return unindent(result)
 
 
@@ -126,14 +147,18 @@ def export_data_collection(dc):
 
     result = Node("")
     for data in dc:
-        result += Node("{d}=Data(label=%s)" % repr(data.label),
+        result += Node("{{d}}=Data(label={0!r})".format(data.label),
                        gives=[data],
                        tokens=dict(d=data))
         for comp in data.components:
-            result += Node("{c}={d}.add_component(%s, label=%s)" %
-                           (data[comp].tolist(), repr(comp.label)),
-                           gives=[comp],
-                           tokens=dict(c=comp, d=data))
+            result += Node(
+                "{{c}}={{d}}.add_component({0}, label={1!r})".format(
+                    data[comp].tolist(),
+                    comp.label,
+                ),
+                gives=[comp],
+                tokens=dict(c=comp, d=data),
+            )
 
     return result
 
